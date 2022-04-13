@@ -1,20 +1,26 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 from PIL import Image
 from os.path import exists, getsize, basename, dirname
-import itertools
+from os import cpu_count
+from itertools import combinations
 from glob import glob
-import sys
+from sys import exit
 from joblib import Parallel, delayed
+from time import time
 
 
-PFAD = "C:\\Users\\jeman\\Google Drive\\Bilder\\Schöne Momente\\Urlaub & Events\\Camel-Night Oktober 2016"
 UNTERORDNER_PRUEFEN = False  # max-depth = 1
-# PFAD = "./Testbilder"
-
 SCHRITT_GROESSE = 100
 ABWEICHUNG = 80
-CPUCORES = 16
+
+
+def time_convert(elapsedSeconds):
+    minutes = (elapsedSeconds // 60) % 60
+    seconds = elapsedSeconds % 60
+    print("--> Fertig nach {} Minuten und {} Sekunden".format(
+        int(minutes), int(seconds)))
 
 
 def checkIfFileExists(inputPath):
@@ -58,7 +64,7 @@ def compareColorsOfImages(image1, image2, skaling_faktor):
 
 def printDuplicateImages(bild1, bild2):
     print((" - {} ({}KB) und {} ({}KB)").format(basename(bild1),
-          getsize(bild1) / 1000, basename(bild2),  getsize(bild2) / 1000))
+          getsize(bild1) / 1000, basename(bild2), getsize(bild2) / 1000))
 
 
 def compareImages(image1Path, image2Path):
@@ -82,27 +88,36 @@ def compareImages(image1Path, image2Path):
 def startComparissonForPath(PFAD):
     alleDateien = glob(PFAD.replace("\\", "/") + "*.jp*g")
     anzahlKombinationen = sum(
-        1 for _ in itertools.combinations(alleDateien, 2))
+        1 for _ in combinations(alleDateien, 2))
 
     if anzahlKombinationen == 0:
         print("Es wurden keine Bilder im genannten Verzeichnis gefunden!")
-        sys.exit(1)
+        exit(1)
 
-    print("Prüfe {} Kombinationen im Ordner {}".format(
-        anzahlKombinationen, dirname(PFAD)))
+    print("Überprüfe {} Bilder mit {} Kombinationen".format(
+        len(alleDateien), anzahlKombinationen))
 
-    Parallel(n_jobs=CPUCORES)(delayed(compareImages)(
-        kombination[0], kombination[1]) for kombination in itertools.combinations(alleDateien, 2))
+    startTime = time()
+
+    Parallel(n_jobs=cpu_count())(delayed(compareImages)(
+        kombination[0], kombination[1]) for kombination in combinations(alleDateien, 2))
+
+    endTime = time()
+    time_convert(endTime - startTime)
 
 
 def getAllDirectionsInPath(Pfad):
-    if UNTERORDNER_PRUEFEN:
-        alleOrdner = glob(Pfad + "/*/", recursive=False)
-    else:
-        alleOrdner = glob(Pfad + "/", recursive=False)
+    alleOrdner = glob(
+        Pfad + "/*/", recursive=False) if UNTERORDNER_PRUEFEN else glob(Pfad + "/", recursive=False)
+
     for ordner in alleOrdner:
         startComparissonForPath(ordner)
 
 
 if __name__ == "__main__":
-    getAllDirectionsInPath(PFAD)
+    path = input("Pfad, der geprüft werden soll: ")
+    if not exists(path):
+        print("\nDas Verzeichnis \"" + str(path) + "\" existiert nicht!")
+        exit(1)
+
+    getAllDirectionsInPath(path)
