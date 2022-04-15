@@ -3,7 +3,7 @@
 
 from PIL import Image
 from os.path import exists, getsize, basename, dirname
-from os import cpu_count, name
+from os import cpu_count
 from itertools import combinations
 from glob import glob
 from sys import exit
@@ -67,9 +67,8 @@ def printDuplicateImages(bild1, bild2):
     image2DiskSpace = getsize(bild2)
     print((" - {} ({}KB) und {} ({}KB)").format(basename(bild1),
           image1DiskSpace / 1000, basename(bild2), image2DiskSpace / 1000))
-    removeCommand = "del" if str(name) == "nt" else "rm"
-    print(("       {} \"{}\"").format(str(removeCommand),
-          bild1 if image2DiskSpace > image1DiskSpace else bild2))
+    print(("       rm \"{}\"\n").format(
+        bild1 if image2DiskSpace > image1DiskSpace else bild2))
 
 
 def compareImages(image1Path, image2Path):
