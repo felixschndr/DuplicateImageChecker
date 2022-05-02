@@ -101,7 +101,7 @@ def startComparissonForPath(PFAD):
 
     startTime = time()
 
-    Parallel(n_jobs=cpu_count())(
+    Parallel(n_jobs=(cpu_count() - 1))(
         delayed(compareImages)(kombination[0], kombination[1]) for kombination in combinations(alleDateien, 2)
     )
 
