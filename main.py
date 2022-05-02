@@ -22,15 +22,15 @@ def convert_seconds_to_minutes_and_seconds(elapsedSeconds):
     return int(minutes), int(seconds)
 
 
-def openImage(imagePath):
+def open_image(imagePath):
     return Image.open(imagePath)
 
 
-def getColorToPixel(image, pixel):
+def get_color_to_pixel_of_image(image, pixel):
     return image.getpixel(pixel)
 
 
-def compareSizesOfImages(image1, image2):
+def compare_image_sizes(image1, image2):
     # Prüfen, ob die Größen der Bilder vielfache voneinander sind
     skaling_faktor = image1.width / image2.width
     if image1.height == image2.height * skaling_faktor:
@@ -39,11 +39,11 @@ def compareSizesOfImages(image1, image2):
     return 0
 
 
-def compareColorsOfImages(image1, image2, skaling_faktor):
+def compare_colors_of_images(image1, image2, skaling_faktor):
     for x in range(0, image1.width, STEP_SIZE):  # Vergleich auf x
         for y in range(0, image1.height, STEP_SIZE):  # Vergleich auf y
-            image1R, image1G, image1B = getColorToPixel(image1, (x, y))
-            image2R, image2G, image2B = getColorToPixel(image2, (x / skaling_faktor, y / skaling_faktor))
+            image1R, image1G, image1B = get_color_to_pixel_of_image(image1, (x, y))
+            image2R, image2G, image2B = get_color_to_pixel_of_image(image2, (x / skaling_faktor, y / skaling_faktor))
 
             red_in_deviation = image1R - ALLOWED_DEVIATION <= image2R <= image1R + ALLOWED_DEVIATION
             green_in_deviation = image1G - ALLOWED_DEVIATION <= image2G <= image1G + ALLOWED_DEVIATION
@@ -55,7 +55,7 @@ def compareColorsOfImages(image1, image2, skaling_faktor):
     return True
 
 
-def printDuplicateImages(bild1, bild2):
+def print_duplicate_images(bild1, bild2):
     image1DiskSpace = getsize(bild1)
     image2DiskSpace = getsize(bild2)
 
@@ -63,11 +63,11 @@ def printDuplicateImages(bild1, bild2):
     print(f'       rm "{bild1 if image2DiskSpace > image1DiskSpace else bild2}"')
 
 
-def compareImages(image1Path, image2Path):
-    image1 = openImage(image1Path)
-    image2 = openImage(image2Path)
+def compare_images(image1Path, image2Path):
+    image1 = open_image(image1Path)
+    image2 = open_image(image2Path)
 
-    skaling_faktor = compareSizesOfImages(image1, image2)
+    skaling_faktor = compare_image_sizes(image1, image2)
     if skaling_faktor == 0:
         # Bildergrößen sind keine Vielfachen von einander
         return False
@@ -76,12 +76,11 @@ def compareImages(image1Path, image2Path):
         if getsize(image1Path) != getsize(image2Path):
             return False
 
-    if compareColorsOfImages(image1, image2, skaling_faktor):
-        printDuplicateImages(image1Path, image2Path)
+    if compare_colors_of_images(image1, image2, skaling_faktor):
+        print_duplicate_images(image1Path, image2Path)
 
 
-def startComparissonForPath(path):
-    print(path.replace("\\", "/"))
+def startComparissonForPath(path):  # main method
     all_files = glob(path.replace("\\", "/") + "/*.jp*g")
     number_of_combinations = sum(1 for _ in combinations(all_files, 2))
 
@@ -89,17 +88,14 @@ def startComparissonForPath(path):
         print("Es wurden keine Bilder im genannten Verzeichnis gefunden!")
         exit(1)
 
-    print("Überprüfe {} Bilder mit {} Kombinationen".format(len(all_files), number_of_combinations))
-
-    # startTime = time()
+    print(f"Überprüfe {len(all_files)} Bilder mit {number_of_combinations} Kombinationen")
 
     global_start_time = time()
-
     Parallel(n_jobs=(cpu_count() - 1))(
-        delayed(compareImages)(combination[0], combination[1]) for combination in combinations(all_files, 2)
+        delayed(compare_images)(combination[0], combination[1]) for combination in combinations(all_files, 2)
     )
-
     global_end_time = time()
+
     minutes, seconds = convert_seconds_to_minutes_and_seconds(global_end_time - global_start_time)
     print(f"--> Fertig nach {minutes} Minuten und {seconds} Sekunden")
 
@@ -107,7 +103,7 @@ def startComparissonForPath(path):
 if __name__ == "__main__":
     path = input("Pfad, der geprüft werden soll: ")
     if not exists(path):
-        print('\nDas Verzeichnis "' + str(path) + '" existiert nicht!')
+        print(f'\nDas Verzeichnis "{path}" existiert nicht!')
         exit(1)
 
     startComparissonForPath(path)
