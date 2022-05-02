@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from PIL import Image
-from os.path import exists, getsize, basename, dirname
+from os.path import exists, getsize, basename
 from os import cpu_count
 from itertools import combinations
 from glob import glob
@@ -11,22 +11,15 @@ from joblib import Parallel, delayed
 from time import time
 
 
-UNTERORDNER_PRUEFEN = False  # max-depth = 1
-SCHRITT_GROESSE = 100
-ABWEICHUNG = 80
+STEP_SIZE = 100
+ALLOWED_DEVIATION = 80
 
 
-def time_convert(elapsedSeconds):
+def convert_seconds_to_minutes_and_seconds(elapsedSeconds):
     minutes = (elapsedSeconds // 60) % 60
     seconds = elapsedSeconds % 60
-    print("--> Fertig nach {} Minuten und {} Sekunden".format(int(minutes), int(seconds)))
 
-
-def checkIfFileExists(inputPath):
-    fileExists = exists(inputPath)
-    if not fileExists:
-        print('Die Datei "' + str(inputPath) + '" existiert nicht!')
-    return fileExists
+    return int(minutes), int(seconds)
 
 
 def openImage(imagePath):
@@ -47,14 +40,16 @@ def compareSizesOfImages(image1, image2):
 
 
 def compareColorsOfImages(image1, image2, skaling_faktor):
-    for x in range(0, image1.width, SCHRITT_GROESSE):  # Vergleich auf x
-        for y in range(0, image1.height, SCHRITT_GROESSE):  # Vergleich auf y
+    for x in range(0, image1.width, STEP_SIZE):  # Vergleich auf x
+        for y in range(0, image1.height, STEP_SIZE):  # Vergleich auf y
             image1R, image1G, image1B = getColorToPixel(image1, (x, y))
             image2R, image2G, image2B = getColorToPixel(image2, (x / skaling_faktor, y / skaling_faktor))
-            rotInAbweichung = image1R - ABWEICHUNG <= image2R <= image1R + ABWEICHUNG
-            gruenInAbweichung = image1G - ABWEICHUNG <= image2G <= image1G + ABWEICHUNG
-            blauInAbweichung = image1B - ABWEICHUNG <= image2B <= image1B + ABWEICHUNG
-            if not (rotInAbweichung and gruenInAbweichung and blauInAbweichung):
+
+            red_in_deviation = image1R - ALLOWED_DEVIATION <= image2R <= image1R + ALLOWED_DEVIATION
+            green_in_deviation = image1G - ALLOWED_DEVIATION <= image2G <= image1G + ALLOWED_DEVIATION
+            blue_in_deviation = image1B - ALLOWED_DEVIATION <= image2B <= image1B + ALLOWED_DEVIATION
+
+            if not (red_in_deviation and green_in_deviation and blue_in_deviation):
                 return False
 
     return True
@@ -63,57 +58,50 @@ def compareColorsOfImages(image1, image2, skaling_faktor):
 def printDuplicateImages(bild1, bild2):
     image1DiskSpace = getsize(bild1)
     image2DiskSpace = getsize(bild2)
-    print(
-        (" - {} ({}KB) und {} ({}KB)").format(
-            basename(bild1), image1DiskSpace / 1000, basename(bild2), image2DiskSpace / 1000
-        )
-    )
-    print(('       rm "{}"\n').format(bild1 if image2DiskSpace > image1DiskSpace else bild2))
+
+    print(f" - {basename(bild1)} ({image1DiskSpace / 1000}KB) und {basename(bild2)} ({image2DiskSpace / 1000}KB)")
+    print(f'       rm "{bild1 if image2DiskSpace > image1DiskSpace else bild2}"')
 
 
 def compareImages(image1Path, image2Path):
-    # print(f'\r{round(counter/anzahlKombinationen*100, 2)} %', end="")
-    # print("Vergleiche Bild {} mit {}".format(
-    #     basename(image1Path), basename(image2Path)))
     image1 = openImage(image1Path)
     image2 = openImage(image2Path)
-    if not (checkIfFileExists(image1Path) and checkIfFileExists(image2Path)):
-        return False
 
     skaling_faktor = compareSizesOfImages(image1, image2)
     if skaling_faktor == 0:
+        # Bildergrößen sind keine Vielfachen von einander
         return False
+    elif skaling_faktor == 1:
+        # Genau die gleiche Bildergröße somit handelt es sich nicht um das gleiche Bild, wenn die Dateigrößen unterschiedlich sind
+        if getsize(image1Path) != getsize(image2Path):
+            return False
 
-    sameImage = compareColorsOfImages(image1, image2, skaling_faktor)
-    if sameImage:
+    if compareColorsOfImages(image1, image2, skaling_faktor):
         printDuplicateImages(image1Path, image2Path)
 
 
-def startComparissonForPath(PFAD):
-    alleDateien = glob(PFAD.replace("\\", "/") + "*.jp*g")
-    anzahlKombinationen = sum(1 for _ in combinations(alleDateien, 2))
+def startComparissonForPath(path):
+    print(path.replace("\\", "/"))
+    all_files = glob(path.replace("\\", "/") + "/*.jp*g")
+    number_of_combinations = sum(1 for _ in combinations(all_files, 2))
 
-    if anzahlKombinationen == 0:
+    if number_of_combinations == 0:
         print("Es wurden keine Bilder im genannten Verzeichnis gefunden!")
         exit(1)
 
-    print("Überprüfe {} Bilder mit {} Kombinationen".format(len(alleDateien), anzahlKombinationen))
+    print("Überprüfe {} Bilder mit {} Kombinationen".format(len(all_files), number_of_combinations))
 
-    startTime = time()
+    # startTime = time()
+
+    global_start_time = time()
 
     Parallel(n_jobs=(cpu_count() - 1))(
-        delayed(compareImages)(kombination[0], kombination[1]) for kombination in combinations(alleDateien, 2)
+        delayed(compareImages)(combination[0], combination[1]) for combination in combinations(all_files, 2)
     )
 
-    endTime = time()
-    time_convert(endTime - startTime)
-
-
-def getAllDirectionsInPath(Pfad):
-    alleOrdner = glob(Pfad + "/*/", recursive=False) if UNTERORDNER_PRUEFEN else glob(Pfad + "/", recursive=False)
-
-    for ordner in alleOrdner:
-        startComparissonForPath(ordner)
+    global_end_time = time()
+    minutes, seconds = convert_seconds_to_minutes_and_seconds(global_end_time - global_start_time)
+    print(f"--> Fertig nach {minutes} Minuten und {seconds} Sekunden")
 
 
 if __name__ == "__main__":
@@ -122,4 +110,4 @@ if __name__ == "__main__":
         print('\nDas Verzeichnis "' + str(path) + '" existiert nicht!')
         exit(1)
 
-    getAllDirectionsInPath(path)
+    startComparissonForPath(path)
