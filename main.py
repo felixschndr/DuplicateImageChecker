@@ -3,10 +3,11 @@
 
 from PIL import Image
 from os.path import exists, getsize, basename
+from argparse import ArgumentParser
 from os import cpu_count
 from itertools import combinations
 from glob import glob
-from sys import exit
+import sys
 from joblib import Parallel, delayed
 from time import time
 
@@ -86,7 +87,7 @@ def startComparissonForPath(path):  # main method
 
     if number_of_combinations == 0:
         print("Es wurden keine Bilder im genannten Verzeichnis gefunden!")
-        exit(1)
+        sys.exit(1)
 
     print(f"Überprüfe {len(all_files)} Bilder mit {number_of_combinations} Kombinationen")
 
@@ -101,9 +102,18 @@ def startComparissonForPath(path):  # main method
 
 
 if __name__ == "__main__":
-    path = input("Pfad, der geprüft werden soll: ")
+    parser = ArgumentParser()
+    parser.add_argument("-p", "--path", dest="path", help="Pfad, der geprüft werden soll", required=False)
+    args = parser.parse_args()
+
+    path = ""
+    if args.path:
+        path = args.path
+    else:
+        path = input("Pfad, der geprüft werden soll: ")
+
     if not exists(path):
         print(f'\nDas Verzeichnis "{path}" existiert nicht!')
-        exit(1)
+        sys.exit(1)
 
     startComparissonForPath(path)
