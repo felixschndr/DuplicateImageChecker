@@ -106,11 +106,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--path", dest="path", help="Pfad, der geprüft werden soll", required=False)
     args = parser.parse_args()
 
-    path = ""
-    if args.path:
-        path = args.path
-    else:
-        path = input("Pfad, der geprüft werden soll: ")
+    path = args.path if args.path else input("Pfad, der geprüft werden soll: ")
 
     if not exists(path):
         print(f'\nDas Verzeichnis "{path}" existiert nicht!')
